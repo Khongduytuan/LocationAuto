@@ -10,7 +10,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.eagletech.locationauto.databinding.ActivityMainBinding
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Priority
@@ -19,6 +21,9 @@ import com.google.android.gms.tasks.CancellationTokenSource
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var fusedLocationProviderClient: FusedLocationProviderClient
+    private lateinit var locationRequest: LocationRequest
+    private lateinit var locationCallback: LocationCallback
+    private var updateCount = 0
 
     @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,6 +32,28 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this)
+
+        // ChatGPT
+        locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            2000
+        ).setMinUpdateIntervalMillis(2000).build()
+        // Tạo callback để xử lý kết quả vị trí
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    updateCount++
+                    val currentTime = System.currentTimeMillis()
+                    val locationText = """
+                        Latitude: ${location.latitude}
+                        Longitude: ${location.longitude}
+                        Updates: $updateCount
+                        Time: $currentTime
+                    """.trimIndent()
+                    binding.tvLocation.text = locationText
+                }
+            }
+        }
         // Xin quyền
         val locationPermissionRequest = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
@@ -42,15 +69,7 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(this, "Location access granted", Toast.LENGTH_LONG).show()
 
                     if (isLocationEnabled()) {
-                        val result = fusedLocationProviderClient.getCurrentLocation(
-                            Priority.PRIORITY_BALANCED_POWER_ACCURACY,
-                            CancellationTokenSource().token
-                        )
-                        result.addOnCompleteListener {
-                            val location =
-                                "Latitude: " + it.result.latitude + "\n" + "Longitude: " + it.result.longitude
-                            binding.tvLocation.text = location
-                        }
+                        startLocationUpdates()
                     } else {
                         Toast.makeText(this, "Please turn ON the location", Toast.LENGTH_LONG)
                             .show()
@@ -108,5 +127,15 @@ class MainActivity : AppCompatActivity() {
             e.printStackTrace()
         }
         return false
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        fusedLocationProviderClient.requestLocationUpdates(locationRequest, locationCallback, null)
+    }
+
+    override fun onStop() {
+        super.onStop()
+        fusedLocationProviderClient.removeLocationUpdates(locationCallback)
     }
 }

@@ -15,6 +15,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.LocationAuto"
         tools:targetApi="31">
+        <service android:name=".service.LocationService" android:foregroundServiceType="location"/>
         <activity
             android:name=".MainActivity"
             android:exported="true">
